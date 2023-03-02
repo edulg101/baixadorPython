@@ -109,6 +109,31 @@ def checkIfFileExists(path: str) -> bool:
     return exists
 
 
+def downloadVideo(url: str, path: str) -> bool:
+    if (os.path.exists(path=path)):
+        print(f'Arquivo {path} já baixado. Não vou repetir')
+        return False
+    print(f"baixando {path} .... aguarde !")
+
+    # "Host": "vali.qconcursos.com",
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.50"}
+
+    r = requests.get(url, headers=headers)
+
+    folder = os.path.dirname(path)
+    if not (os.path.exists(folder)):
+        print(folder)
+        os.makedirs(folder)
+    with open(path, 'wb') as f:
+
+        bytes = f.write(r.content)
+        if bytes > 0:
+            print(f'Arquivo {path} baixado com sucesso !')
+            return True
+    return False
+
+
 def downloadFile(url: str, path: str) -> bool:
     if (os.path.exists(path=path)):
         print(f'Arquivo {path} já baixado. Não vou repetir')
@@ -152,8 +177,8 @@ def start():
     password = setupVars.password
 
     requisicao = Requisicao()
-    requisicao.videos = True
-    requisicao.pdf = False
+    requisicao.videos = setupVars.videos
+    requisicao.pdf = setupVars.pdf
 
     # driver = uc.Chrome()
     options = Options()
@@ -233,14 +258,12 @@ def start():
                 # check if file already has been downloaded before click
                 aula.pdfFile = aula.fullPath + ".pdf"
                 ex = checkIfFileExists(aula.pdfFile)
-                print(ex)
+                hasPDF = True
                 if (checkIfFileExists(aula.pdfFile)):
                     hasPDF = False
                     print(
                         f'arquivo {aula.pdfFile} já baixado. Não baixarei.')
-                    continue
 
-                hasPDF = True
                 mainWindow = driver.current_window_handle
 
                 # wait for download button
@@ -291,6 +314,7 @@ def start():
                     driver.switch_to.window(mainWindow)
 
             if requisicao.videos:
+                pageUnderConstruction = False
                 script = "(document.querySelector(\"[data-title='Videoaulas']\")).click()"
 
                 try:
@@ -306,6 +330,7 @@ def start():
                     driver.execute_script(script)
                 except Exception as e:
                     print(e)
+                    pageUnderConstruction = True
                     continue
                 time.sleep(2)
                 removeElementById(driver, "beamerPushModal")
@@ -321,6 +346,13 @@ def start():
                     By.CLASS_NAME, "wH1_DckA6q4vsEeY5Eri")
                 titles = driver.find_elements(
                     By.CLASS_NAME, "yAy_T7FsZTJZ8bMW62x4")
+
+                if (pageUnderConstruction):
+                    videosElements = driver.find_elements(
+                        By.CLASS_NAME, "IJUTdvDcqxi7NymzcDt8")
+                    titles = driver.find_elements(
+                        By.CLASS_NAME, "pmHzpk2QKO8XewfXsAt3")
+
                 index = 0
                 for item in videosElements:
                     video = Video()
@@ -339,7 +371,7 @@ def start():
                     video.fullPath = os.path.join(
                         aula.fullPath, video.name)
 
-                    t = downloadFile(video.url, video.fullPath)
+                    t = downloadVideo(video.url, video.fullPath)
                     index = index+1
 
 
